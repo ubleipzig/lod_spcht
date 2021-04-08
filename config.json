@@ -1,0 +1,34 @@
+{
+  "errors": {
+    "urls": "Die Sammlung der Serveradressen konnte nicht gefunden werden. Vorgang wird abgebrochen",
+    "settings": "Die sonstigen Einstellungen konnten nicht gefunden werden. Vorgang wird abgebrochen",
+    "nofile": "Die angegebene Datei konnte nicht gefunden werden",
+    "graph_parser": "Der Graph Parser konnte den Eingang nicht interpretieren",
+    "json_parser": "Beim Interpretieren des JSON Eingangs wurde ein Irrigularität entdeckt.",
+    "@context": "Mapping unvollständig, unauflösbare Kurzform gefunden {}",
+    "file": "Die Datei {} konnte nicht gefunden werden",
+    "spcht_map": "Das Mapping muss eindimensional sein.",
+    "spcht_ref": "Fehler beim Laden der referenzierten Mappings"
+  },
+  "para": {
+    "solr1": "http://172.18.85.143:8080/solr/biblio/select",
+    "solr": "http://index.ub.uni-leipzig.de/solr/biblio/select",
+    "spcht": "./default.spcht.json",
+    "spcht2": "/home/jpk/PycharmProjects/SPCHT_UB_SOLR/ub-solr.spcht.json",
+    "sparql": "http://localhost:8890/sparql-auth/",
+    "sparql_user": "python",
+    "sparql_pw": "TheresaSechsNull",
+    "virtuoso-read": "http://localhost:8890/sparql",
+    "graph": "https://data.finc.info/resources/",
+    "graph3": "https://data.finc.info/reschorsches",
+    "graph_label": "https://data.finc.info/resources/labels",
+    "query": "source_id:0 institution:DE-15",
+    "rows": 150000,
+    "parts": 20000,
+    "log": "./testdata/full_process_times_$time.log",
+    "time": 5600
+  },
+  "settings": {
+    "workers": 8
+  }
+}
