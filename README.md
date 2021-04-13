@@ -45,3 +45,6 @@ I used [Intellij Pycharm](https://www.jetbrains.com/pycharm/)  with the followin
 
 for writing markdown files i used [Typora](https://typora.io/).
 
+## Funding
+
+Funded by European Regional Development Fund (EFRE)![EFRE_EU_quer_2015_cmyk_engl](./README/EFRE_EU_quer_2015_cmyk_engl.jpg)
