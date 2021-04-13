@@ -1,0 +1,6 @@
+ <!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="icons">
+        <file alias="spcht_checker_gui.ico">spcht_checker_gui.ico</file>
+    </qresource>
+</RCC>
