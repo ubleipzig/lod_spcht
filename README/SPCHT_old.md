@@ -18,7 +18,7 @@ Lets get started with an example:
         {
             "name": "ISBN",
             "source": "dict",
-            "graph": "http://purl.org/ontology/bibo/isbn",
+            "predicate": "http://purl.org/ontology/bibo/isbn",
             "field": "isbn",
             "required": "optional",
             "fallback": {
@@ -33,7 +33,7 @@ Lets get started with an example:
 }
 ```
 
-The basic structure is a core entry for the graph and a list of dictionaries. Each dictionary contains the mapping for one data field that _can_ result in more than one graph-node.
+The basic structure is a core entry for the subject and a list of dictionaries. Each dictionary contains the mapping for one data field that _can_ result in more than one graph-node.
 
 Goal of the whole format was to provide a somewhat easy way for a librarian to map specific data from a database into a linked data format and create something that is accessible via a triplestore. There are other projects like **Meta Facture** that solve a similar problem in the same context. Especially *metafacture* is based on a XML which is somewhat unwieldy. Furthermore its too deep for what is to be accomplished with SPCHT. SPCHT only sees itself as a format that provides the raw formated result data, not the logic to actually insert it into a triplestore. It was created as a the solution for a set task and has some boundaries where the set task was to specific for that task. I made the cut to separate the SPCHT Format that might be used elsewhere from the *solr2virtuoso* Bridge project that was very singular in its vision.
 
@@ -68,7 +68,7 @@ Every other node is mapped in the aforementioned `node` List. Its supposed to be
 
 ##### General Node Architecture
 
-Each Node contains at least a `source`, `graph` and `required` field which define the surrounding note. It can also contain a number of fields that work for all sources, a small number of functions are only available for `source: dict`. The following keys are generally applicable:
+Each Node contains at least a `source`, `predicate` and `required` field which define the surrounding note. It can also contain a number of fields that work for all sources, a small number of functions are only available for `source: dict`. The following keys are generally applicable:
 
 * `if_condition` - restrains the use of the field to the value of another field ()
 * `match` - only uses the field if its content matches the specified regex
@@ -81,7 +81,7 @@ Each Node contains at least a `source`, `graph` and `required` field which defin
 
 *Notice that `match` and `if_condition` are used before the value is transformed by `cut`, `replace`, `append` or `prepend`. Internally these are divided in pre and post processing. If there other trans formative functions like `mapping` these are used in between pre and post processing.*
 
-Additionally there is the fall back key that contains an entire new node but without the `graph` and `required` field. Every fall back can contain another fall back. 
+Additionally there is the fall back key that contains an entire new node but without the `predicate` and `required` field. Every fall back can contain another fall back. 
 
 You can add any other *non-protected* field name you desire to make it more readable. The Example file usually sports a `name` dictionary entry despite it not being doing anything for the processing.
 
@@ -100,7 +100,7 @@ You can add any other *non-protected* field name you desire to make it more read
   
   * Values: `dict` and `marc`
   
-* `graph` - the actual mapping to linked data. Before sending sparql queries the script will shorten all entries accordingly. If you have multiple entries of the same source they will be grouped. I decided that for this kind of configuration file it is best to leave as many information to the bare eye as possible. You can define a new graph for a fall back if there ever arises the need to do it in one node. If you don't do so the fall back node will inherit the his `graph` from the parent node. (*if you have a very exotic 4 staged node and redefine the graph in the second fall back, the third will use the graph of its parent which is the second fall back, not the root node. I honestly see not a use case for this but the functionality was easily enough to obtain. **Note: you can change the graph but not the type of that node in fall backs, which limits future use cases***)
+* `predicate` - the actual mapping to linked data. Before sending sparql queries the script will shorten all entries accordingly. If you have multiple entries of the same source they will be grouped. I decided that for this kind of configuration file it is best to leave as many information to the bare eye as possible. You can define a new predicate for a fall back if there ever arises the need to do it in one node. If you don't do so the fall back node will inherit the his `predicate` from the parent node. (*if you have a very exotic 4 staged node and redefine the predicate in the second fall back, the third will use the predicate of its parent which is the second fall back, not the root node. I honestly see not a use case for this but the functionality was easily enough to obtain. **Note: you can change the predicate but not the type of that node in fall backs, which limits future use cases***)
   
   * Values: `a fully qualify graph descriptor string`
   
@@ -126,6 +126,13 @@ You can add any other *non-protected* field name you desire to make it more read
 
   * optional key `insert_add_fields`: `list of str` - example: `["isbn", "release_year"]
   * Values: `a string with "{}" as Placeholder`
+
+* **If Conditions**
+
+  * Simple Types: there is one condition defined by `if_condition` that can be any basic boolean operator or `"exi"`. Every one **except** `"exi"` does need a defined `if_value` that might be a *string*, *integer* or *float* that gets compared with the content of `if_field`. The standard mode is that if **ANY** Field-Value satisfies the condition the node will be mapped. 
+    Example: *if we check for [1, 3, 5, 7] to be below 5 there will be a mapping for* every *of the fields, not just those that match the condition*
+  * List Types: it is possible to compare against a list of `if_values`, in this case every value of `if_field` will be compared to every `if_value`. It is only possible to check for equal or unequal in that case as it would make no sense to check if `if_field` is smaller than a list of value instead of just one. The condition is inclusive, the node will be used (return of true) if any of the `if_field` values matches any of the `if_value` . If you check for unequal there will only be a "true" return if none of the values matches. Any equal matching would lead to a "false" return as both list arent totally inequal to each other.
+    Example: *Value might be ["aut", "oth"], if we check for`!=` ["act", "edt"] the return will be* true*, if we would check for ["reg", "aut"] one of the values would match to each other and the return is* false
 
 * `if_condition`
 
@@ -159,7 +166,7 @@ You can add any other *non-protected* field name you desire to make it more read
 * other fields: the spcht descriptor format is meant to be a human readable configuration file, you can add any field you might like to make things more clear is not described to hold a function. For future extension it would be safest to stick to two particular dictionary-keys: `name` and `comment`
   *Note:* the aformentioned Spcht Gui program also uses the comment section as part of its displayed attributes, it matches every entry that starts with "comment*" which makes multiple comments possible.
 
-*some content might be not exactly matching from here*
+<span style="color:red;font-weight:bold;font-size:18px">This is not up to date:</span>
 
 ##### source: dict
 
@@ -178,17 +185,16 @@ It is possible to **map** the value of your dictionary key with the field `mappi
     * `$ref` - Reference to a local file that gets filled into the `mapping`
     * `$type` - can either be `regex` or `rigid`. *Rigid* matches only exact keys including cases, *regex* matches according to rules. Might be cpu intensive.
     * `$defaut` - a default value that is set when there is no value present that matches a key/regex, can be set to `True` to copy the initial value
-* `graph_field` - While the graph is normally constant and defined by the `graph` field it can also be relative to the value of another field. If you set `graph_field` you also **must** set either `graph_map_ref` or `graph_map`. It will **always default** to the graph specified by `graph`.  If both the value of `graph_field` and `field` are a list, both list have to be the same length and each element will be paired with the same position on the other list. 
+* `joined_field` - While the predicate is normally constant and defined by the `predicate` field it can also be relative to the value of another field. If you set `joined_field` you also **must** set either `joined_map_ref` or `joined_map`. It will **always default** to the predicate specified by `predicate`.  If both the value of `joined_field` and `field` are a list, both list have to be the same length and each element will be paired with the same position on the other list. 
   *This key-type was created in response to a specific database field that contained a paired list of contributers and the type of contribution that person added, its written universally to be reused and to stay within doctrine*
-  **Note:** due the strict nature of `graph_field` and `field` in pair an also defined `alternatives` will be ignored
+  **Note:** due the strict nature of `joined_field` and `field` in pair an also defined `alternatives` will be ignored
   * Value: `a string`
-* `graph_map` - this works analogue as `mapping`
+* `joned_map` - this works analogue as `mapping`
   * Value: `a flat dictionary of strings {"key": "value", ..}`
-* `graph_map_ref` - Unlike the `mapping_settings` key this has only a singular purpose, therefore it only contains a string pointing to a **local** file containing the appropriated flat dictionary for the mapping. If both `graph_map` and `graph_map_ref` are defined the content of `graph_map` gets priority and entries with the same key in the referenced file will be ignored.
+* `joined_map_ref` - Unlike the `mapping_settings` key this has only a singular purpose, therefore it only contains a string pointing to a **local** file containing the appropriated flat dictionary for the mapping. If both `joined_map` and `joined_map_ref` are defined the content of `joined_map` gets priority and entries with the same key in the referenced file will be ignored.
   * Value: `a string pointing with the filepath to a local file` *Files handled by OS, networked resources in LAN might work*
 * `alternatives` - there is possibility that a specific data field isn't always available in your given database but you know there are other keys that might contain the desired data. `alternatives` is a list of different dictionary keys which will be tried in order of their appearance.
   * Values: `a list of strings [str, str, str]`
-  
 ##### source: marc
 
 As of now a *Marc21* data source is inherently part of the main dictionary source, mostly to be found in a special, very big key. It contains the entire original *Marc21*-entry as received from another network. Usually it needs additional interpreting to be useful. The current source contains some methods to extract informations from the provided *Marc21* file. In its essence it just transform the *MARC21* information into a dictionary that follows the *MARC21*-structure.  There are minor differences in between *Marc21*-Data sources that might have to be handled with care and maybe additional preprocessing. The work on this part is not even nearly done.
@@ -209,7 +215,7 @@ The following kinds of key are currently possible
     {
       "name": "Some Text that is used in debugging but not elsewhere",
       "source": "dict",
-      "graph": "",
+      "predicate": "",
       "field": "",
       "required": "optional"
     }
@@ -272,10 +278,10 @@ def descri_status(self)
 def getSaveAs(self, key=None)
 def cleanSaveAs(self)
 def load_descriptor_file(self, filename)
-def get_node_graphs(self)
+def get_node_predicates(self)
 def get_node_fields(self)
 def set_default_fields(self, list_of_strings)
-def processData(self, raw_dict, graph, marc21="fullrecord", marc21_source="dict")
+def processData(self, raw_dict, subject, marc21="fullrecord", marc21_source="dict")
 def __init__(self, filename=None, check_format=False, debug=False)
 ```
 
@@ -290,7 +296,7 @@ def __init__(self, filename=None, check_format=False, debug=False)
 | **cleanSaveas**            | Removes duplicated entries of the `self._saveas` Variable    |
 | **load_descriptor**        | Loads the specified, local descriptor file and validates it.  Returns true when successfull |
 | **processData**            | Main function, inputs a flat dictionary of one set of data that get mapped according to the descriptor file. Requires successfully loaded descriptor file. |
-| **get_node_graphs**        | Returns a list of strings of all used graphs in the loaded spcht file, can theoretically return an empty list |
+| **get_node_predicates**        | Returns a list of strings of all used predicates in the loaded spcht file, can theoretically return an empty list |
 | **get_node_fields**        | Returns a list of strings of all used fields, the field `fullrecord` is always included per default |
 | **set_default_fields**     | Changes the default list of default fields consisting of `fullrecord` to something else |
 
@@ -303,6 +309,14 @@ self.std_out = sys.stdout
 self.std_err = sys.stderr
 self.debug_out = sys.stdout
 ```
+
+### Private functions
+
+
+
+
+
+### Ideas // Planning
 
 ### Addendum
 

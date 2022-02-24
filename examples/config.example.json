@@ -1,0 +1,18 @@
+{
+    "solr_url": "http://<fqdn>/solr/biblio/select",
+    "sparql_endpoint": "http://<fqdn>/sparql-auth/",
+    "spcht_descriptor": "default.spcht.json",
+    "user": "<user>",
+    "password": "<password>",
+    "subject": "<URI>",
+    "named_graph": "<URI>",
+    "query": "*:*",
+    "query_rows": 5000,
+    "chunk_size": 1000,
+    "save_folder": "./",
+    "virt_folder": "/tmp/",
+    "isql_path": "/usr/local/bin/isql-v",
+    "isql_port": 1111,
+    "processes": 4,
+    "max_age": 5600
+}

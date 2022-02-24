@@ -1,0 +1,432 @@
+{
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "id": "https://raw.githubusercontent.com/ubleipzig/lod_spcht/Main/SpchtSchema.json",
+    "title": "Spcht Descriptor Format 0.8",
+    "description": "",
+    "type": "object",
+    "required": ["id_field", "id_source", "nodes"],
+    "properties": {
+        "id_field": {
+            "descriptions": "Variable part of the subject, data-field name",
+            "type": "string"
+        },
+        "id_source": {
+            "description": "Source of the variable subject part ('dict', 'marc' or 'tree')",
+            "enum": ["dict", "marc", "tree"],
+            "type": "string"
+        },
+        "id_fallback": {
+            "description": "alternative part of the variable subject",
+            "$ref": "#/$defs/main_node"
+        },
+        "id_subject_prefix": {
+            "description": "first part of the subject the id-value gets added to",
+            "type": "string"
+        },
+        "nodes": {
+            "description": "Main description of the spcht",
+            "type": "array",
+            "items": { "$ref":  "#/$defs/root_node" },
+            "additionalItems": false
+        }
+    },
+    "$defs": {
+        "root_node": {
+            "type": "object",
+            "required": ["field", "source", "predicate", "required"],
+            "properties": {
+                "source": {
+                    "description": "Source of the field, either dict or marc",
+                    "type": "string",
+                    "enum": ["dict", "marc", "tree"]
+                },
+                "field": {
+                    "description": "Name of the data-field that gets converted to the object",
+                    "type": "string"
+                },
+                "predicate": {
+                    "description": "Static predicate string",
+                    "type": "string"
+                },
+                "required": {
+                    "description": "designates whether a field is needed for the graph or not",
+                    "type": "string",
+                    "enum": ["mandatory", "optional"]
+                },
+                "type": {
+                    "description": "Designates if the final triple has a triple as object or a literal",
+                    "type": "string",
+                    "enum": ["uri", "literal"]
+                },
+                "alternatives": {
+                    "description": "If 'field' cannot be found alternatives is used as direct standin",
+                    "type": "array"
+                },
+                "mapping": {
+                    "description": "Replaces a given value with the other side of the map.",
+                    "type": "object",
+                    "additionalProperties": { "type": ["string", "number"] }
+                },
+                "mapping_settings": {
+                    "description": "Settings for the map",
+                    "type": "object",
+                    "properties": {
+                        "$default": { "type":  "string" },
+                        "$inherit": { "type":  "boolean" },
+                        "$casesens": { "type": "boolean"},
+                        "$ref": { "type":  "string" },
+                        "$regex": { "type": "boolean"}
+                    },
+                    "additionalProperties": false
+                },
+                "joined_map": {
+                    "description": "Map that defines the replacing predicate from 'joined_field",
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                },
+                "joined_field": {
+                    "description": "A data-field that is used in combination with 'joined_map' to replace the predicate",
+                    "type": "string"
+                },
+                "joined_map_ref": {
+                    "description": "referenced file for additional mappings in 'joined_field'",
+                    "type": "string"
+                },
+                "match":
+                {
+                    "description": "Regex String, matching function, filters out string that do not match regex",
+                    "type": "string"
+                },
+                "append": {
+                    "description": "Adds text after the objects value",
+                    "type": ["string", "number"]
+                },
+                "prepend": {
+                    "description": "Adds text before the objects value",
+                    "type": ["string", "number"]
+                },
+                "cut": {
+                    "description": "Deletes every instance of the string found described",
+                    "type": "string"
+                },
+                "replace": {
+                    "description": "inserts the text of this field into every part that was removed by 'cut",
+                    "type": "string"
+                },
+                "insert_into": {
+                    "description": "Inserts the object value at the placeholder position in this string",
+                    "type": "string"
+                },
+                "insert_add_fields": {
+                    "description": "Additional values that can be inserted in additional 'insert_string' placeholder",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["field"],
+                        "properties": {
+                            "field": {
+                                "description": "name of field that gets inserted into the placeholder string",
+                                "type": ["string", "number"]
+                            },
+                            "append": {
+                                "description": "appends the string to the end of the fields content",
+                                "type": ["string", "number"]
+                            },
+                            "prepend": {
+                                "description": "prepends the string to the end of the fields content",
+                                "type": ["string", "number"]
+                            },
+                            "cut": {
+                                "description": "Removes the matching part of this, must be Regex",
+                                "type": "string"
+                            },
+                            "replace": {
+                                "description": "If something was removed with 'cut' that position is replaced with this.",
+                                "type": ["string", "number"]
+                            },
+                            "match": {
+                                "description": "Filters out all values that are not fitting the given regex",
+                                "type": "string"
+                            },
+                            "source": {
+                                "description": "Defines an alternative source type for this particlar field",
+                                "type": "string"
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+                    "additionalItems": false
+                },
+                "if_field": {
+                    "description": "Data-field that is used in the left side of a comparison",
+                    "type": "string"
+                },
+                "if_value": {
+                    "description": "Right side of the comparion that is compared against 'if_field'",
+                    "type": ["string", "number", "array", "boolean"],
+                    "items": { "type": ["string", "number"] },
+                    "additionalItems": false
+                },
+                "if_condition": {
+                    "description": "Comparator operator",
+                    "type": "string",
+                    "enum": ["equal", "eq", "greater", "gr", "lesser", "ls", "greater_equal", "gq", "lesser_equal", "lq", "unequal", "uq", "=", "==", "<", ">", "<=", ">=", "!=", "exi"]
+                },
+                "fallback": {
+                    "description": "recursive node if the first one does not match",
+                    "$ref":  "#/$defs/sub_node"
+                },
+                "comment": {
+                    "description": "Provided commentary that is not used for the actual mapping but can provide context for analysis tools",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name for a node, is not used for any processing",
+                    "type": "string"
+                },
+                "sub_nodes": {
+                    "description": "a list of nodes that uses the value of its parent as subject",
+                    "type": "array",
+                    "additionalItems": false,
+                    "items": {"$ref": "#/$defs/sub_node"}
+                },
+                "append_uuid_predicate_fields": {
+                    "description": "Generates an UUID based on the given list of fields, all must be around, adds to the end of the predicate value",
+                    "type": "array",
+                    "items": { "type":  "string" },
+                    "additionalItems": false
+                },
+                "append_uuid_object_fields": {
+                    "description": "Generates an UUID based on the given list of fields, all must be around, adds to the end of the object value",
+                    "type": "array",
+                    "items": { "type":  "string" },
+                    "additionalItems": false
+                },
+                "static_field": {
+                    "description": "Replaces any field value with the text of this value",
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "extended designator for linked data designation of literals like @en or xsd:string",
+                    "type": "string"
+                },
+                "sub_data": {
+                    "description": "a list of nodes that utilise the listified content of some of the data",
+                    "type": "array",
+                    "additionalItems": false,
+                    "items": {"$ref": "#/$defs/sub_node"}
+                }
+            },
+            "patternProperties": {
+                "^(comment)\\w*$": { "type":  "string" }
+            },
+            "additionalProperties": false
+        },
+        "sub_node": {
+            "type": "object",
+            "description": "Copy & Paste of root_node but with two less requirements",
+            "required": ["field", "source"],
+            "properties": {
+                "source": {
+                    "description": "Source of the field, either dict or marc",
+                    "type": "string",
+                    "enum": ["dict", "marc", "tree"]
+                },
+                "field": {
+                    "description": "Name of the data-field that gets converted to the object",
+                    "type": "string"
+                },
+                "predicate": {
+                    "description": "Static predicate string",
+                    "type": "string"
+                },
+                "required": {
+                    "description": "designates whether a field is needed for the graph or not",
+                    "type": "string",
+                    "enum": ["mandatory", "optional"]
+                },
+                "type": {
+                    "description": "Designates if the final triple has a triple as object or a literal",
+                    "type": "string",
+                    "enum": ["uri", "literal"]
+                },
+                "alternatives": {
+                    "description": "If 'field' cannot be found alternatives is used as direct standin",
+                    "type": "array"
+                },
+                "mapping": {
+                    "description": "Replaces a given value with the other side of the map.",
+                    "type": "object",
+                    "additionalProperties": { "type": ["string", "number"] }
+                },
+                "mapping_settings": {
+                    "description": "Settings for the map",
+                    "type": "object",
+                    "properties": {
+                        "$default": { "type":  "string" },
+                        "$inherit": { "type":  "boolean" },
+                        "$casesens": { "type": "boolean"},
+                        "$ref": { "type":  "string" },
+                        "$regex": { "type": "boolean"}
+                    },
+                    "additionalProperties": false
+                },
+                "joined_map": {
+                    "description": "Map that defines the replacing predicate from 'joined_field",
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                },
+                "joined_field": {
+                    "description": "A data-field that is used in combination with 'joined_map' to replace the predicate",
+                    "type": "string"
+                },
+                "joined_map_ref": {
+                    "description": "referenced file for additional mappings in 'joined_field'",
+                    "type": "string"
+                },
+                "match":
+                {
+                    "description": "Regex String, matching function, filters out string that do not match regex",
+                    "type": "string"
+                },
+                "append": {
+                    "description": "Adds text after the objects value",
+                    "type": ["string", "number"]
+                },
+                "prepend": {
+                    "description": "Adds text before the objects value",
+                    "type": ["string", "number"]
+                },
+                "cut": {
+                    "description": "Deletes every instance of the string found described",
+                    "type": "string"
+                },
+                "replace": {
+                    "description": "inserts the text of this field into every part that was removed by 'cut",
+                    "type": "string"
+                },
+                "insert_into": {
+                    "description": "Inserts the object value at the placeholder position in this string",
+                    "type": "string"
+                },
+                "insert_add_fields": {
+                    "description": "Additional values that can be inserted in additional 'insert_string' placeholder",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["field"],
+                        "properties": {
+                            "field": {
+                                "description": "name of field that gets inserted into the placeholder string",
+                                "type": ["string", "number"]
+                            },
+                            "append": {
+                                "description": "appends the string to the end of the fields content",
+                                "type": ["string", "number"]
+                            },
+                            "prepend": {
+                                "description": "prepends the string to the end of the fields content",
+                                "type": ["string", "number"]
+                            },
+                            "cut": {
+                                "description": "Removes the matching part of this, must be Regex",
+                                "type": "string"
+                            },
+                            "replace": {
+                                "description": "If something was removed with 'cut' that position is replaced with this.",
+                                "type": ["string", "number"]
+                            },
+                            "match": {
+                                "description": "Filters out all values that are not fitting the given regex",
+                                "type": "string"
+                            },
+                            "source": {
+                                "description": "Defines an alternative source type for this particlar field",
+                                "type": "string"
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+                    "additionalItems": false
+                },
+                "if_field": {
+                    "description": "Data-field that is used in the left side of a comparison",
+                    "type": "string"
+                },
+                "if_value": {
+                    "description": "Right side of the comparion that is compared against 'if_field'",
+                    "type": ["string", "number", "array", "boolean"],
+                    "items": { "type": ["string", "number"] },
+                    "additionalItems": false
+                },
+                "if_condition": {
+                    "description": "Comparator operator",
+                    "type": "string",
+                    "enum": ["equal", "eq", "greater", "gr", "lesser", "ls", "greater_equal", "gq", "lesser_equal", "lq", "unequal", "uq", "=", "==", "<", ">", "<=", ">=", "!=", "exi"]
+                },
+                "fallback": {
+                    "description": "recursive node if the first one does not match",
+                    "$ref":  "#/$defs/sub_node"
+                },
+                "comment": {
+                    "description": "Provided commentary that is not used for the actual mapping but can provide context for analysis tools",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Name for a node, is not used for any processing",
+                    "type": "string"
+                },
+                 "sub_nodes": {
+                    "description": "a list of nodes that uses the value of its parent as subject",
+                    "type": "array",
+                    "additionalItems": false,
+                    "items": {"$ref": "#/$defs/sub_node"}
+                },
+                "append_uuid_predicate_fields": {
+                    "description": "Generates an UUID based on the given list of fields, all must be around, adds to the end of the predicate value",
+                    "type": "array",
+                    "items": { "type":  "string" },
+                    "additionalItems": false
+                },
+                "append_uuid_object_fields": {
+                    "description": "Generates an UUID based on the given list of fields, all must be around, adds to the end of the object value",
+                    "type": "array",
+                    "items": { "type":  "string" },
+                    "additionalItems": false
+                },
+                "static_field": {
+                    "description": "Replaces any field value with the text of this value",
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "extended designator for linked data designation of literals like @en or xsd:string",
+                    "type": "string"
+                },
+                "sub_data": {
+                    "description": "a list of nodes that utilise the listified content of some of the data",
+                    "type": "array",
+                    "additionalItems": false,
+                    "items": {"$ref": "#/$defs/sub_node"}
+                }
+            },
+            "patternProperties": {
+                "^(comment)\\w*$": { "type":  "string" }
+            },
+            "additionalProperties": false
+        },
+        "main_node": {
+            "type": "object",
+            "required": ["field", "source"],
+            "properties": {
+                "field": {
+                    "description": "Variable part of the subject, data-field name",
+                    "type": "string"
+                },
+                "source": {
+                "description": "Source of the variable subject part ('dict' or 'marc')",
+                "type": "string"
+                }
+            }
+        }
+    }
+}

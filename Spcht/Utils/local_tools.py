@@ -1,33 +1,45 @@
+#!/usr/bin/env python
 # coding: utf-8
 
-# Copyright 2021 by Leipzig University Library, http://ub.uni-leipzig.de
+# Copyright 2022 by Leipzig University Library, http://ub.uni-leipzig.de
 #                   JP Kanter, <kanter@ub.uni-leipzig.de>
 #
-# This file is part of some open source application.
+# This file is part of the Spcht.
 #
-# Some open source application is free software: you can redistribute
+# This program is free software: you can redistribute
 # it and/or modify it under the terms of the GNU General Public
 # License as published by the Free Software Foundation, either
 # version 3 of the License, or (at your option) any later version.
 #
-# Some open source application is distributed in the hope that it will
+# This program is distributed in the hope that it will
 # be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
 # of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+# along with Spcht.  If not, see <http://www.gnu.org/licenses/>.
 #
 # @license GPL-3.0-only <https://www.gnu.org/licenses/gpl-3.0.en.html>
-
 
 import sys
 import time
 import json
 import requests
-
-from termcolor import colored
+import logging
+import hashlib
+from dateutil.relativedelta import relativedelta
 from requests.auth import HTTPDigestAuth
+
+# more or less only needed for debug stuff
+try:
+    from termcolor import colored
+except ModuleNotFoundError:
+    def colored(string: str) -> str:
+        return string
+# internal modules
+import Spcht.Core.SpchtErrors as SpchtErrors
+
+logger = logging.getLogger(__name__)
 
 # describes structure of the json response from solr Version 7.3.1 holding the ubl data
 
@@ -45,6 +57,38 @@ def slice_header_json(data):
     raise TypeError("unex_struct")
 
 
+def solr_handle_return(data):
+    """
+    Handles the returned json of an apache solr, throws some "meaningful" TypeErrors in case not everything
+    went alright. Otherwise it returns the main body which should be a list of dictionaries
+
+    :param dict data: json-like object coming from an apache solr
+    :return: a list of dictionary objects containing the queried content
+    :rtype: list
+    :raises: TypeError on inconsistencies or error 400
+    """
+    if 'responseHeader' not in data:
+        raise SpchtErrors.ParsingError("no response header found")
+    code = data.get('responseHeader').get('status')
+    if code == 400:
+        if 'error' in data:
+            raise SpchtErrors.ParsingError(f"response 400 - {data.get('error').get('msg')}")
+        else:
+            raise SpchtErrors.ParsingError("response 400 BUT no error identifier!")
+
+    if code != 0:  # currently unhandled errors
+        if 'error' in data:
+            raise SpchtErrors.ParsingError(f"response code {code} - {data.get('error').get('msg')}")
+        else:
+            raise SpchtErrors.ParsingError(f"response code {code}, unknown cause")
+
+    if code == 0:
+        if not 'response' in data:
+            raise SpchtErrors.ParsingError("Code 0 (all okay), BUT no response")
+
+        return data.get('response').get('docs')
+
+
 def load_remote_content(url, params, response_type=0, mode="GET"):
     # starts a GET request to the specified solr server with the provided list of parameters
     # response types: 0 = just the content, 1 = just the header, 2 = the entire GET-RESPONSE
@@ -53,14 +97,16 @@ def load_remote_content(url, params, response_type=0, mode="GET"):
             resp = requests.get(url, params=params)
         else:
             resp = requests.post(url, data=params)
-        if response_type == 0 or response_type > 2:  # this seems ugly
-            return resp.text
-        elif response_type == 1:
+        if resp.status_code != 200:
+            raise SpchtErrors.RequestError("Request couldnt be fullfilled, check url")
+        if response_type == 1:
             return resp.headers
         elif response_type == 2:
             return resp
+        else:
+            return resp.text
     except requests.exceptions.RequestException as e:
-        print("Request not successful,", e, file=sys.stderr)
+        logger.error(f"Request not successful: {e}")
 
 
 def block_sparkle_insert(graph, insert_list):
@@ -71,18 +117,20 @@ def block_sparkle_insert(graph, insert_list):
     return sparkle
 
 
-def sparqlQuery(sparql_query, base_url, get_format="application/json", **kwargs):
+def sparqlQuery(sparql_query, base_url, get_format="application/json", **kwargs) -> tuple:
     # sends a query to the sparql endpoint of a virtuoso and (per default) retrieves a json and returns the data
     params = {
         "default-graph": "",
         "should-sponge": "soft",
         "query": sparql_query,
-        "debug": "on",
+        "debug": "off",
         "timeout": "",
         "format": get_format,
         "save": "display",
         "fname": ""
     }
+    if "named_graph" in kwargs:
+        params['default-graph-uri'] = kwargs['named_graph']
     try:
         if kwargs.get("auth", False) and kwargs.get("pwd", False):
             # response = requests.get(base_url, auth=HTTPDigestAuth(kwargs.get("auth"), kwargs.get("pwd")), params=params)
@@ -90,19 +138,19 @@ def sparqlQuery(sparql_query, base_url, get_format="application/json", **kwargs)
         else:
             response = requests.get(base_url, params=params)
     except requests.exceptions.ConnectionError:
-        sys.stderr.write("Connection to Sparql-Server failed\n\r")
-        return False
+        logger.error("Connection to Sparql-Server failed")
+        return False, False
 
     try:
         if response is not None:
             if get_format == "application/json":
-                return json.loads(response.text)
+                return True, json.loads(response.text)
             else:
-                return response.text
+                return True, response.text
         else:
-            return False
+            return False, False
     except json.decoder.JSONDecodeError:
-        return response.text
+        return True, response.text
 
 
 def cprint_type(object, show_type=False):
@@ -216,3 +264,121 @@ def super_simple_progress_bar_clear(out=sys.stdout):
         return False
     max_str, rows = shutil.get_terminal_size()
     print(" "*max_str, end="\r")
+
+
+def delta_now(zero_time, rounding=2):
+    return str(round(time.time() - zero_time, rounding))
+
+
+def delta_time_human(**kwargs):
+    # https://stackoverflow.com/a/11157649
+    attrs = ['years', 'months', 'days', 'hours', 'minutes', 'seconds', 'microseconds']
+    delta = relativedelta(**kwargs)
+    human_string = ""
+    for attr in attrs:
+        if getattr(delta, attr):
+            if human_string != "":
+                human_string += ", "
+            human_string += '%d %s' % (getattr(delta, attr), getattr(delta, attr) > 1 and attr or attr[:-1])
+    return human_string
+
+
+def str2sha256(text: str):
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+
+def test_json(json_str: str) -> dict or bool:
+    #  i am almost sure that there is already a build in function that does something very similar, embarrassing
+    try:
+        data = json.loads(json_str)
+        return data
+    except ValueError:
+        logger.error(f"Got supplied an errernous json, started with '{str(json_str)[:100]}'")
+        return None
+    except SpchtErrors.RequestError as e:
+        logger.error(f"Connection Error: {e}")
+        return None
+
+
+def load_from_json(file_path):
+    # TODO: give me actually helpful insights about the json here, especially where its wrong, validation and all
+    try:
+        with open(file_path, mode='r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        logger.error(f"Couldnt open file '{file_path}' cause it couldnt be found")
+        return None
+    except ValueError as e:
+        logger.error(f"Couldnt open supposed json file due an error while parsing: '{e}'")
+        return None
+    except Exception as error:
+        logger.error(f"A general exception occured while tyring to open the supposed json file '{file_path}' - {error.args}")
+        return None
+
+
+def sizeof_fmt(num: int, suffix="B") -> str:
+    """
+    Human readeable size
+
+    https://stackoverflow.com/a/1094933
+
+    https://web.archive.org/web/20111010015624/http://blogmag.net/blog/read/38/Print_human_readable_file_size
+    :param int num: size in bytes
+    :param str suffix: suffix after size identifier, like GiB
+    """
+    for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
+        if abs(num) < 1024.0:
+            return f"{num:3.1f} {unit}{suffix}"
+        num /= 1024.0
+    return f"{num:.1f} Yi{suffix}"
+
+
+def setDeepKey(dictionary, value, *keys):
+    rolling_dict = dictionary
+    for _, key in enumerate(keys):
+        if _ < len(keys)-1:
+            if key in rolling_dict and isinstance(rolling_dict[key], dict):
+                rolling_dict = rolling_dict[key]
+            else:
+                return None
+        else:
+            rolling_dict[key] = value
+    return dictionary
+
+
+def convert_to_base_type(input: str, json_mode=False):
+    """
+    Totally dumb function that does nothing else as to try to convert a string to some basic type
+
+    * 'False' | 'True' -> Bool
+    * 123456789 -> int
+    * 1.23456789 -> float
+    * everything else -> str
+
+    :param input:
+    :type input: str
+    :param json_mode: in json an all lowercase true/false is the boolean expression
+    :type json_mode: bool
+    :return:
+    :rtype:
+    """
+    try:
+        return int(input)
+    except ValueError:
+        pass
+    try:
+        return float(input)
+    except ValueError:
+        pass
+    if json_mode:
+        if input.strip() == "false":
+            return False
+        elif input.strip() == "true":
+            return True
+    else:
+        if input.strip() == "False":
+            return False
+        elif input.strip() == "True":
+            return True
+    return input
+
